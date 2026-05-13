@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Options Spread Copilot</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="toolbar" aria-label="Scanner controls">
+        <div>
+          <h1>Options Spread Copilot</h1>
+          <p id="providerStatus">Checking providers...</p>
+        </div>
+        <form id="scanForm" class="controls">
+          <label>
+            Symbols
+            <input id="symbols" value="SPY,QQQ,IWM" autocomplete="off" />
+          </label>
+          <label>
+            Window
+            <select id="window">
+              <option value="today">Today</option>
+              <option value="weekend">This weekend</option>
+              <option value="next_week">Next week</option>
+            </select>
+          </label>
+          <label>
+            Strategy
+            <select id="strategy">
+              <option value="auto">Auto</option>
+              <option value="bull_put">Bull put</option>
+              <option value="bear_call">Bear call</option>
+              <option value="bull_call">Bull call</option>
+              <option value="bear_put">Bear put</option>
+            </select>
+          </label>
+          <button type="submit">Scan</button>
+        </form>
+      </section>
+
+      <section class="summary">
+        <div>
+          <span class="kicker">Top Score</span>
+          <strong id="topScore">--</strong>
+        </div>
+        <div>
+          <span class="kicker">Ideas</span>
+          <strong id="ideaCount">--</strong>
+        </div>
+        <div>
+          <span class="kicker">Updated</span>
+          <strong id="updatedAt">--</strong>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div>
+          <div class="sectionTitle">Ranked Spreads</div>
+          <div id="results" class="results"></div>
+        </div>
+        <aside>
+          <div class="sectionTitle">Featured Ideas</div>
+          <div id="ideas" class="ideas"></div>
+          <div class="sectionTitle">Notes</div>
+          <ul id="notes" class="notes"></ul>
+        </aside>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
