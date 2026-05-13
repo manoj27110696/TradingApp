@@ -1,0 +1,105 @@
+openapi: 3.1.0
+info:
+  title: Options Spread Copilot API
+  version: 0.1.0
+  description: Research API for option-chain lookup, featured trade ideas, and ranked option spread candidates.
+servers:
+  - url: https://YOUR-DEPLOYED-DOMAIN.example.com
+paths:
+  /api/spreads/recommendations:
+    get:
+      operationId: getSpreadRecommendations
+      summary: Get ranked options spread candidates
+      description: Returns research-only ranked vertical spreads for one or more symbols and expiration windows.
+      parameters:
+        - name: symbols
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated tickers such as SPY,QQQ,AAPL.
+        - name: window
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [today, weekend, next_week, custom]
+            default: today
+        - name: strategy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [auto, bull_call, bear_call, bull_put, bear_put]
+            default: auto
+        - name: start
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Required when window is custom.
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Required when window is custom.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Ranked candidates and featured ideas.
+  /api/options/expirations:
+    get:
+      operationId: getOptionExpirations
+      summary: Get available option expirations for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Available expiration dates.
+  /api/options/chain:
+    get:
+      operationId: getOptionChain
+      summary: Get an option chain for a symbol and expiration
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: expiration
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Option chain snapshot.
+  /api/market-chameleon/ideas:
+    get:
+      operationId: getMarketChameleonIdeas
+      summary: Get configured Market Chameleon featured trade ideas
+      parameters:
+        - name: symbols
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated ticker filter.
+      responses:
+        "200":
+          description: Featured ideas.
