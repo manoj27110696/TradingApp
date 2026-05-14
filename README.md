@@ -13,7 +13,6 @@ This project is for research and paper-trading workflow support only. It does no
 
 - FastAPI backend with OpenAPI docs
 - CuteMarkets delayed option-chain adapter for free/cheap research data
-- Tradier option-chain adapter for broker-connected real-time/delayed options data
 - Market Chameleon featured-ideas ingest hook
 - Vertical spread scanner for bull call, bear call, bull put, and bear put spreads
 - Expiration windows: today, this weekend, next week, or custom ISO date range
@@ -37,8 +36,6 @@ Open `http://localhost:8000`.
 Set these in `.env`:
 
 ```text
-TRADIER_TOKEN=
-TRADIER_BASE_URL=https://api.tradier.com/v1
 CUTEMARKETS_API_KEY=
 CUTEMARKETS_BASE_URL=https://api.cutemarkets.com
 CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT=0.12
@@ -46,7 +43,7 @@ MARKET_CHAMELEON_FEATURED_IDEAS_URL=
 MARKET_CHAMELEON_SESSION_COOKIE=
 ```
 
-Provider priority is `TRADIER_TOKEN`, then `CUTEMARKETS_API_KEY`, then the built-in sample chain. The CuteMarkets provider fetches a near-the-money slice of each chain to avoid burning through free-plan limits.
+Provider priority is `CUTEMARKETS_API_KEY`, then the built-in sample chain. The CuteMarkets provider fetches a near-the-money slice of each chain to avoid burning through free-plan limits.
 
 ## Custom GPT Setup
 
@@ -59,7 +56,6 @@ Provider priority is `TRADIER_TOKEN`, then `CUTEMARKETS_API_KEY`, then the built
 ## Suggested Data Providers
 
 - CuteMarkets: free 15-minute delayed option-chain research data.
-- Tradier: broker-connected option chains, expirations, quotes.
 - Polygon, ThetaData, ORATS, Cboe LiveVol, or Interactive Brokers can be added behind `OptionChainProvider`.
 - Market Chameleon featured ideas can be wired through a paid/export feed or a private page endpoint you are licensed to access.
 
