@@ -11,7 +11,6 @@ from app.providers.base import FeaturedIdeasProvider, OptionChainProvider
 from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.market_chameleon import MarketChameleonFeaturedIdeasProvider
 from app.providers.sample import SampleFeaturedIdeasProvider, SampleOptionChainProvider
-from app.providers.tradier import TradierOptionChainProvider
 from app.services.spread_scanner import SpreadScanner, choose_expirations
 
 app = FastAPI(
@@ -30,8 +29,6 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 def option_provider(settings: Settings = Depends(get_settings)) -> OptionChainProvider:
-    if settings.tradier_token:
-        return TradierOptionChainProvider(settings.tradier_token, settings.tradier_base_url)
     if settings.cutemarkets_api_key:
         return CuteMarketsOptionChainProvider(
             settings.cutemarkets_api_key,
@@ -72,7 +69,6 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
         "status": "ok",
         "app": settings.app_name,
         "environment": settings.app_env,
-        "tradier_configured": bool(settings.tradier_token),
         "cutemarkets_configured": bool(settings.cutemarkets_api_key),
         "market_chameleon_configured": bool(settings.market_chameleon_featured_ideas_url),
         "time": datetime.now(timezone.utc).isoformat(),
