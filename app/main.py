@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,6 +43,17 @@ def ideas_provider(settings: Settings = Depends(get_settings)) -> FeaturedIdeasP
     return SampleFeaturedIdeasProvider()
 
 
+def require_api_key(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    if settings.app_api_key and x_api_key != settings.app_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid API key.",
+        )
+
+
 @app.get("/", include_in_schema=False)
 async def dashboard() -> FileResponse:
     return FileResponse("app/static/index.html")
@@ -63,6 +74,7 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
 @app.get("/api/options/expirations")
 async def expirations(
     symbol: str = Query(..., min_length=1, max_length=12),
+    _auth: None = Depends(require_api_key),
     provider: OptionChainProvider = Depends(option_provider),
 ) -> dict[str, object]:
     try:
@@ -76,6 +88,7 @@ async def expirations(
 async def option_chain(
     symbol: str = Query(..., min_length=1, max_length=12),
     expiration: date = Query(...),
+    _auth: None = Depends(require_api_key),
     provider: OptionChainProvider = Depends(option_provider),
 ) -> OptionChain:
     try:
@@ -87,6 +100,7 @@ async def option_chain(
 @app.get("/api/market-chameleon/ideas")
 async def featured_ideas(
     symbols: str | None = Query(default=None, description="Comma-separated ticker list"),
+    _auth: None = Depends(require_api_key),
     provider: FeaturedIdeasProvider = Depends(ideas_provider),
 ) -> dict[str, object]:
     symbol_list = parse_symbols(symbols)
@@ -105,6 +119,7 @@ async def recommendations(
     start: date | None = Query(default=None),
     end: date | None = Query(default=None),
     limit: int = Query(default=10, ge=1, le=50),
+    _auth: None = Depends(require_api_key),
     settings: Settings = Depends(get_settings),
     provider: OptionChainProvider = Depends(option_provider),
     featured_provider: FeaturedIdeasProvider = Depends(ideas_provider),
