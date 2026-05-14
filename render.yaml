@@ -14,7 +14,5 @@ services:
         value: https://api.cutemarkets.com
       - key: CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT
         value: 0.12
-      - key: TRADIER_BASE_URL
-        value: https://api.tradier.com/v1
       - key: DEFAULT_SYMBOLS
         value: SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA
