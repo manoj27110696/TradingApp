@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     app_name: str = "Options Spread Copilot"
     app_env: str = "local"
     app_api_key: str = ""
+    cutemarkets_api_key: str = ""
+    cutemarkets_base_url: str = "https://api.cutemarkets.com"
+    cutemarkets_chain_strike_window_pct: float = 0.12
     tradier_token: str = ""
     tradier_base_url: str = "https://api.tradier.com/v1"
     market_chameleon_featured_ideas_url: str = ""
