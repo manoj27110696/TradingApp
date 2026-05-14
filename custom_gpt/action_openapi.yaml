@@ -6,6 +6,7 @@ info:
 servers:
   - url: https://options-spread-copilot.onrender.com
 components:
+  schemas: {}
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
@@ -88,11 +89,6 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - name: symbol
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: expiration
           in: query
           required: true
           schema:
