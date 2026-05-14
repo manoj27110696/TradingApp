@@ -2,6 +2,7 @@ import asyncio
 from datetime import date
 
 from app.models import ExpirationWindow, StrategyType
+from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.sample import SampleOptionChainProvider
 from app.services.spread_scanner import SpreadScanner, choose_expirations
 
@@ -33,3 +34,43 @@ def test_choose_expirations_custom_range():
     )
 
     assert selected == [date(2026, 5, 15)]
+
+
+def test_cutemarkets_contract_parser_uses_quote_or_day_price():
+    provider = CuteMarketsOptionChainProvider("test-key", "https://api.cutemarkets.com")
+
+    with_quote = provider._contract(
+        "SPY",
+        {
+            "details": {
+                "ticker": "O:SPY260515C00520000",
+                "contract_type": "call",
+                "expiration_date": "2026-05-15",
+                "strike_price": 520,
+            },
+            "greeks": {"delta": 0.44, "gamma": 0.02, "theta": -0.05, "vega": 0.11},
+            "implied_volatility": 0.21,
+            "last_quote": {"bid": 1.2, "ask": 1.28},
+            "day": {"volume": 750, "close": 1.24},
+            "open_interest": 3500,
+        },
+    )
+    without_quote = provider._contract(
+        "SPY",
+        {
+            "details": {
+                "ticker": "O:SPY260515P00515000",
+                "contract_type": "put",
+                "expiration_date": "2026-05-15",
+                "strike_price": 515,
+            },
+            "day": {"volume": 125, "close": 0.86},
+            "open_interest": 900,
+        },
+    )
+
+    assert with_quote.bid == 1.2
+    assert with_quote.ask == 1.28
+    assert with_quote.delta == 0.44
+    assert without_quote.bid == 0.86
+    assert without_quote.ask == 0.86
