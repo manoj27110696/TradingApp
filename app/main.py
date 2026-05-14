@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import Settings, get_settings
 from app.models import ExpirationWindow, OptionChain, RecommendationResponse, StrategyType
 from app.providers.base import FeaturedIdeasProvider, OptionChainProvider
+from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.market_chameleon import MarketChameleonFeaturedIdeasProvider
 from app.providers.sample import SampleFeaturedIdeasProvider, SampleOptionChainProvider
 from app.providers.tradier import TradierOptionChainProvider
@@ -31,6 +32,12 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 def option_provider(settings: Settings = Depends(get_settings)) -> OptionChainProvider:
     if settings.tradier_token:
         return TradierOptionChainProvider(settings.tradier_token, settings.tradier_base_url)
+    if settings.cutemarkets_api_key:
+        return CuteMarketsOptionChainProvider(
+            settings.cutemarkets_api_key,
+            settings.cutemarkets_base_url,
+            settings.cutemarkets_chain_strike_window_pct,
+        )
     return SampleOptionChainProvider()
 
 
@@ -66,6 +73,7 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
         "app": settings.app_name,
         "environment": settings.app_env,
         "tradier_configured": bool(settings.tradier_token),
+        "cutemarkets_configured": bool(settings.cutemarkets_api_key),
         "market_chameleon_configured": bool(settings.market_chameleon_featured_ideas_url),
         "time": datetime.now(timezone.utc).isoformat(),
     }
