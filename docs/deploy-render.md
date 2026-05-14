@@ -31,12 +31,15 @@ APP_ENV=production
 APP_API_KEY=<generate a long random secret>
 TRADIER_TOKEN=<your Tradier token>
 TRADIER_BASE_URL=https://api.tradier.com/v1
+CUTEMARKETS_API_KEY=<your CuteMarkets key for delayed options data>
+CUTEMARKETS_BASE_URL=https://api.cutemarkets.com
+CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT=0.12
 MARKET_CHAMELEON_FEATURED_IDEAS_URL=<licensed feed or export URL>
 MARKET_CHAMELEON_SESSION_COOKIE=<only if your licensed feed requires it>
 DEFAULT_SYMBOLS=SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA
 ```
 
-Leave `TRADIER_TOKEN` empty for the first smoke test if you want to confirm deployment with sample data.
+Leave `TRADIER_TOKEN` empty and set `CUTEMARKETS_API_KEY` for the free delayed-data path. Leave both empty for the first smoke test if you want to confirm deployment with sample data.
 
 ## 4. Smoke Test
 
