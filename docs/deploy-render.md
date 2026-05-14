@@ -43,7 +43,7 @@ Leave `TRADIER_TOKEN` empty for the first smoke test if you want to confirm depl
 After deployment, open:
 
 ```text
-https://YOUR-RENDER-APP.onrender.com/api/health
+https://options-spread-copilot.onrender.com/api/health
 ```
 
 You should see:
@@ -56,22 +56,16 @@ Then test a protected endpoint with the `X-API-Key` header:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "https://YOUR-RENDER-APP.onrender.com/api/spreads/recommendations?symbols=SPY,QQQ&window=next_week&limit=3" `
+  -Uri "https://options-spread-copilot.onrender.com/api/spreads/recommendations?symbols=SPY,QQQ&window=next_week&limit=3" `
   -Headers @{ "X-API-Key" = "<your APP_API_KEY>" }
 ```
 
 ## 5. Update the Custom GPT Action Schema
 
-Edit `custom_gpt/action_openapi.yaml` and replace:
+The checked-in schema already points to:
 
 ```text
-https://YOUR-DEPLOYED-DOMAIN.example.com
-```
-
-with your Render URL:
-
-```text
-https://YOUR-RENDER-APP.onrender.com
+https://options-spread-copilot.onrender.com
 ```
 
 ## 6. Create the Custom GPT Action
