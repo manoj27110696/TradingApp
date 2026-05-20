@@ -37,7 +37,7 @@ MARKET_CHAMELEON_SESSION_COOKIE=<only if your licensed feed requires it>
 DEFAULT_SYMBOLS=SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA
 ```
 
-Set `CUTEMARKETS_API_KEY` for the free delayed-data path. Leave it empty for the first smoke test if you want to confirm deployment with sample data.
+Set `CUTEMARKETS_API_KEY` for the free delayed-data path. The app does not fall back to sample market data.
 
 ## 4. Smoke Test
 
