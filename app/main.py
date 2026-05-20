@@ -136,6 +136,7 @@ async def recommendations(
     notes = []
 
     for symbol in symbol_list:
+        symbol_candidate_count = 0
         selected_from_provider = True
         try:
             available = await provider.expirations(symbol)
@@ -163,7 +164,11 @@ async def recommendations(
             except Exception as exc:
                 notes.append(f"{symbol} {expiration.isoformat()}: could not fetch chain ({exc})")
                 continue
-            candidates.extend(scanner.scan(chain, strategy=strategy, limit=limit))
+            new_candidates = scanner.scan(chain, strategy=strategy, limit=limit)
+            candidates.extend(new_candidates)
+            symbol_candidate_count += len(new_candidates)
+            if not selected_from_provider and symbol_candidate_count >= limit:
+                break
 
     try:
         ideas = await featured_provider.ideas(symbol_list)
@@ -207,7 +212,11 @@ def calendar_expirations_for_window(
 ) -> list[date]:
     range_start, range_end = expiration_range(window, start, end)
     day_count = min((range_end - range_start).days + 1, max_days)
-    return [range_start + timedelta(days=offset) for offset in range(max(day_count, 0))]
+    return [
+        expiration
+        for offset in range(max(day_count, 0))
+        if (expiration := range_start + timedelta(days=offset)).weekday() < 5
+    ]
 
 
 class EmptyFeaturedIdeasProvider(FeaturedIdeasProvider):
