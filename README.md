@@ -43,7 +43,7 @@ MARKET_CHAMELEON_FEATURED_IDEAS_URL=
 MARKET_CHAMELEON_SESSION_COOKIE=
 ```
 
-Provider priority is `CUTEMARKETS_API_KEY`, then the built-in sample chain. The CuteMarkets provider fetches a near-the-money slice of each chain to avoid burning through free-plan limits.
+Set `CUTEMARKETS_API_KEY` to enable option-chain data. The app does not use sample market data as a fallback; if no provider is configured, data endpoints return a configuration error. The CuteMarkets provider fetches a near-the-money slice of each chain to avoid burning through free-plan limits.
 
 ## Custom GPT Setup
 
