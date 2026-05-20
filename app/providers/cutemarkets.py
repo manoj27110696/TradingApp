@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+import asyncio
 from urllib.parse import urljoin
 
 import httpx
@@ -21,15 +22,19 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
         }
 
     async def expirations(self, symbol: str) -> list[date]:
-        payload = await self._get(f"/v1/tickers/expirations/{symbol.upper()}/")
-        raw_expirations = payload.get("results", [])
         dates: list[date] = []
-        for item in raw_expirations:
-            value = item
-            if isinstance(item, dict):
-                value = item.get("expiration_date") or item.get("date")
-            if isinstance(value, str):
-                dates.append(date.fromisoformat(value))
+        next_url: str | None = f"/v1/tickers/expirations/{symbol.upper()}/"
+        for _ in range(20):
+            if not next_url:
+                break
+            payload = await self._get(next_url)
+            for item in payload.get("results", []):
+                value = item
+                if isinstance(item, dict):
+                    value = item.get("expiration_date") or item.get("date")
+                if isinstance(value, str):
+                    dates.append(date.fromisoformat(value))
+            next_url = payload.get("next_url")
         return sorted(set(dates))
 
     async def chain(self, symbol: str, expiration: date) -> OptionChain:
@@ -71,10 +76,16 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
         return await self._get(f"/v1/options/chain/{symbol.upper()}/", params=params)
 
     async def _get(self, path: str, params: dict | None = None) -> dict:
-        url = urljoin(f"{self.base_url}/", path.lstrip("/"))
+        url = path if path.startswith("http") else urljoin(f"{self.base_url}/", path.lstrip("/"))
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.get(url, params=params, headers=self.headers)
-            response.raise_for_status()
+            for attempt in range(3):
+                response = await client.get(url, params=params, headers=self.headers)
+                if response.status_code not in (429, 500, 502, 503, 504):
+                    response.raise_for_status()
+                    break
+                if attempt == 2:
+                    response.raise_for_status()
+                await asyncio.sleep(0.6 * (attempt + 1))
         payload = response.json()
         if payload.get("status") not in (None, "OK"):
             raise ValueError(f"CuteMarkets returned status {payload.get('status')}")
