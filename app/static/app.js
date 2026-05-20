@@ -6,25 +6,37 @@ const topScore = document.querySelector("#topScore");
 const ideaCount = document.querySelector("#ideaCount");
 const updatedAt = document.querySelector("#updatedAt");
 const providerStatus = document.querySelector("#providerStatus");
+const apiKeyInput = document.querySelector("#apiKey");
+
+apiKeyInput.value = sessionStorage.getItem("optionsSpreadApiKey") || "";
 
 async function loadHealth() {
   const response = await fetch("/api/health");
   const health = await response.json();
-  providerStatus.textContent = `${health.tradier_configured ? "Tradier live data" : "Sample option data"} · ${
-    health.market_chameleon_configured ? "Market Chameleon configured" : "Sample featured ideas"
-  }`;
+  const marketData = health.cutemarkets_configured ? "CuteMarkets delayed data" : "No market data provider";
+  const featuredIdeas = health.market_chameleon_configured ? "Market Chameleon configured" : "No featured-ideas feed";
+  providerStatus.textContent = `${marketData} - ${featuredIdeas}`;
 }
 
 async function scan(event) {
   event?.preventDefault();
   results.innerHTML = `<div class="card">Scanning option chains...</div>`;
+
+  const apiKey = apiKeyInput.value.trim();
+  if (apiKey) {
+    sessionStorage.setItem("optionsSpreadApiKey", apiKey);
+  } else {
+    sessionStorage.removeItem("optionsSpreadApiKey");
+  }
+
   const params = new URLSearchParams({
     symbols: document.querySelector("#symbols").value,
     window: document.querySelector("#window").value,
     strategy: document.querySelector("#strategy").value,
     limit: "12",
   });
-  const response = await fetch(`/api/spreads/recommendations?${params.toString()}`);
+  const headers = apiKey ? { "X-API-Key": apiKey } : {};
+  const response = await fetch(`/api/spreads/recommendations?${params.toString()}`, { headers });
   if (!response.ok) {
     results.innerHTML = `<div class="card warning">Scan failed: ${await response.text()}</div>`;
     return;
@@ -57,7 +69,7 @@ function renderCandidate(candidate) {
       <div class="cardHead">
         <div>
           <div class="symbol">${candidate.symbol}</div>
-          <div class="strategy">${label(candidate.strategy)} · ${candidate.expiration}</div>
+          <div class="strategy">${label(candidate.strategy)} - ${candidate.expiration}</div>
         </div>
         <div class="score">${candidate.total_score.toFixed(1)}</div>
       </div>
@@ -73,10 +85,10 @@ function renderCandidate(candidate) {
         <div class="metric"><span>R/R</span><strong>${candidate.reward_to_risk}:1</strong></div>
         <div class="metric"><span>Liquidity</span><strong>${candidate.liquidity_score.toFixed(1)}</strong></div>
       </div>
-      <p class="rationale">${candidate.rationale.map(escapeHtml).join(" · ")}</p>
+      <p class="rationale">${candidate.rationale.map(escapeHtml).join(" - ")}</p>
       ${
         candidate.warnings.length
-          ? `<p class="rationale warning">${candidate.warnings.map(escapeHtml).join(" · ")}</p>`
+          ? `<p class="rationale warning">${candidate.warnings.map(escapeHtml).join(" - ")}</p>`
           : ""
       }
     </article>
@@ -91,7 +103,7 @@ function renderIdea(idea) {
       <div class="cardHead">
         <div>
           <div class="symbol">${escapeHtml(idea.symbol)}</div>
-          <div class="strategy">${escapeHtml(idea.strategy)}${idea.expiration ? ` · ${idea.expiration}` : ""}</div>
+          <div class="strategy">${escapeHtml(idea.strategy)}${idea.expiration ? ` - ${idea.expiration}` : ""}</div>
         </div>
       </div>
       <p class="rationale">${href}</p>
