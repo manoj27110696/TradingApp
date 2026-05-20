@@ -13,6 +13,14 @@ class StaticOptionProvider:
         return _test_chain()
 
 
+class ExpirationOutageProvider:
+    async def expirations(self, symbol: str):
+        raise RuntimeError("expiration endpoint unavailable")
+
+    async def chain(self, symbol: str, expiration):
+        return _test_chain()
+
+
 def test_recommendations_fail_without_market_data_provider(monkeypatch):
     monkeypatch.delenv("APP_API_KEY", raising=False)
     monkeypatch.delenv("CUTEMARKETS_API_KEY", raising=False)
@@ -43,4 +51,30 @@ def test_recommendations_require_api_key_when_configured(monkeypatch):
 
     app.dependency_overrides.clear()
     monkeypatch.delenv("APP_API_KEY", raising=False)
+    get_settings.cache_clear()
+
+
+def test_recommendations_try_real_chains_when_expiration_list_fails(monkeypatch):
+    monkeypatch.delenv("APP_API_KEY", raising=False)
+    app.dependency_overrides[option_provider] = lambda: ExpirationOutageProvider()
+    get_settings.cache_clear()
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/spreads/recommendations",
+        params={
+            "symbols": "SPY",
+            "window": "custom",
+            "start": "2026-05-15",
+            "end": "2026-05-15",
+            "limit": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["candidates"]
+    assert "expiration list unavailable" in body["notes"][0]
+
+    app.dependency_overrides.clear()
     get_settings.cache_clear()
