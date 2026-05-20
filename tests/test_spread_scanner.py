@@ -118,3 +118,25 @@ def test_cutemarkets_contract_parser_uses_quote_or_day_price():
     assert with_quote.delta == 0.44
     assert without_quote.bid == 0.86
     assert without_quote.ask == 0.86
+
+
+def test_cutemarkets_expiration_parser_follows_pages(monkeypatch):
+    provider = CuteMarketsOptionChainProvider("test-key", "https://api.cutemarkets.com")
+    pages = {
+        "/v1/tickers/expirations/SPY/": {
+            "results": ["2026-05-20", {"expiration_date": "2026-05-22"}],
+            "next_url": "https://api.cutemarkets.com/v1/tickers/expirations/SPY/?page=2",
+        },
+        "https://api.cutemarkets.com/v1/tickers/expirations/SPY/?page=2": {
+            "results": [{"date": "2026-05-29"}],
+        },
+    }
+
+    async def fake_get(path, params=None):
+        return pages[path]
+
+    monkeypatch.setattr(provider, "_get", fake_get)
+
+    dates = asyncio.run(provider.expirations("SPY"))
+
+    assert dates == [date(2026, 5, 20), date(2026, 5, 22), date(2026, 5, 29)]
