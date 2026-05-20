@@ -1,21 +1,33 @@
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
-from app.main import app
+from app.main import app, option_provider
+from tests.test_spread_scanner import _test_chain
 
 
-def test_recommendations_allow_local_without_api_key(monkeypatch):
+class StaticOptionProvider:
+    async def expirations(self, symbol: str):
+        return [_test_chain().expiration]
+
+    async def chain(self, symbol: str, expiration):
+        return _test_chain()
+
+
+def test_recommendations_fail_without_market_data_provider(monkeypatch):
     monkeypatch.delenv("APP_API_KEY", raising=False)
+    monkeypatch.delenv("CUTEMARKETS_API_KEY", raising=False)
     get_settings.cache_clear()
 
     client = TestClient(app)
     response = client.get("/api/spreads/recommendations", params={"symbols": "SPY", "limit": 1})
 
-    assert response.status_code == 200
+    assert response.status_code == 503
+    assert response.json()["detail"] == "No option-chain provider configured. Set CUTEMARKETS_API_KEY."
 
 
 def test_recommendations_require_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("APP_API_KEY", "secret-test-key")
+    app.dependency_overrides[option_provider] = lambda: StaticOptionProvider()
     get_settings.cache_clear()
 
     client = TestClient(app)
@@ -29,5 +41,6 @@ def test_recommendations_require_api_key_when_configured(monkeypatch):
     assert missing.status_code == 401
     assert valid.status_code == 200
 
+    app.dependency_overrides.clear()
     monkeypatch.delenv("APP_API_KEY", raising=False)
     get_settings.cache_clear()
