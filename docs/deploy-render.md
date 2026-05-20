@@ -32,7 +32,7 @@ APP_API_KEY=<generate a long random secret>
 CUTEMARKETS_API_KEY=<your CuteMarkets key for delayed options data>
 CUTEMARKETS_BASE_URL=https://api.cutemarkets.com
 CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT=0.12
-MARKET_CHAMELEON_FEATURED_IDEAS_URL=<licensed feed or export URL>
+MARKET_CHAMELEON_FEATURED_IDEAS_URL=<licensed JSON, RSS/Atom, HTML, or export URL>
 MARKET_CHAMELEON_SESSION_COOKIE=<only if your licensed feed requires it>
 DEFAULT_SYMBOLS=SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA
 ```
