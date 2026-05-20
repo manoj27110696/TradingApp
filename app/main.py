@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +10,7 @@ from app.models import ExpirationWindow, OptionChain, RecommendationResponse, St
 from app.providers.base import FeaturedIdeasProvider, OptionChainProvider
 from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.market_chameleon import MarketChameleonFeaturedIdeasProvider
-from app.services.spread_scanner import SpreadScanner, choose_expirations
+from app.services.spread_scanner import SpreadScanner, choose_expirations, expiration_range
 
 app = FastAPI(
     title="Options Spread Copilot API",
@@ -136,16 +136,21 @@ async def recommendations(
     notes = []
 
     for symbol in symbol_list:
+        selected_from_provider = True
         try:
             available = await provider.expirations(symbol)
             selected = choose_expirations(available, window, start, end)
         except Exception as exc:
-            notes.append(f"{symbol}: could not fetch expirations ({exc})")
-            continue
+            selected = calendar_expirations_for_window(window, start, end)
+            selected_from_provider = False
+            notes.append(
+                f"{symbol}: expiration list unavailable ({exc}); trying real chain data for requested dates."
+            )
         if not selected:
             notes.append(f"{symbol}: no expirations matched {window.value}")
             continue
-        for expiration in selected[:2]:
+        expiration_limit = 2 if selected_from_provider else 7
+        for expiration in selected[:expiration_limit]:
             try:
                 chain = await provider.chain(symbol, expiration)
             except Exception as exc:
@@ -185,6 +190,17 @@ def boost_featured_matches(candidates, ideas):
         candidate.total_score = round(min(candidate.total_score + 4.0, 100.0), 2)
         candidate.rationale.append(f"Boosted because Market Chameleon featured {idea.strategy} for {idea.symbol}.")
     return candidates
+
+
+def calendar_expirations_for_window(
+    window: ExpirationWindow,
+    start: date | None = None,
+    end: date | None = None,
+    max_days: int = 14,
+) -> list[date]:
+    range_start, range_end = expiration_range(window, start, end)
+    day_count = min((range_end - range_start).days + 1, max_days)
+    return [range_start + timedelta(days=offset) for offset in range(max(day_count, 0))]
 
 
 class EmptyFeaturedIdeasProvider(FeaturedIdeasProvider):
