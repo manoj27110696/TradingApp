@@ -43,6 +43,8 @@ MARKET_CHAMELEON_FEATURED_IDEAS_URL=
 MARKET_CHAMELEON_SESSION_COOKIE=
 ```
 
+`MARKET_CHAMELEON_FEATURED_IDEAS_URL` can point to a licensed JSON feed, an RSS/Atom feed, or a Market Chameleon HTML page. RSS/blog feeds are treated as research ideas and parsed for ticker/strategy text; the app does not scrape around Market Chameleon access controls.
+
 Set `CUTEMARKETS_API_KEY` to enable option-chain data. The app does not use sample market data as a fallback; if no provider is configured, data endpoints return a configuration error. The CuteMarkets provider fetches a near-the-money slice of each chain to avoid burning through free-plan limits.
 
 ## Custom GPT Setup
