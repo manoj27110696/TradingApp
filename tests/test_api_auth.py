@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
-from app.main import app, option_provider
+from app.models import ExpirationWindow
+from app.main import app, calendar_expirations_for_window, option_provider
 from tests.test_spread_scanner import _test_chain
 
 
@@ -112,3 +113,13 @@ def test_recommendations_try_real_chains_when_expiration_list_is_incomplete(monk
 
     app.dependency_overrides.clear()
     get_settings.cache_clear()
+
+
+def test_calendar_expiration_probe_dates_skip_weekends():
+    dates = calendar_expirations_for_window(
+        ExpirationWindow.custom,
+        start=_test_chain().expiration,
+        end=_test_chain().expiration.replace(day=17),
+    )
+
+    assert dates == [_test_chain().expiration]
