@@ -147,8 +147,15 @@ async def recommendations(
                 f"{symbol}: expiration list unavailable ({exc}); trying real chain data for requested dates."
             )
         if not selected:
-            notes.append(f"{symbol}: no expirations matched {window.value}")
-            continue
+            selected = calendar_expirations_for_window(window, start, end)
+            selected_from_provider = False
+            if selected:
+                notes.append(
+                    f"{symbol}: expiration list had no {window.value} matches; trying real chain data for requested dates."
+                )
+            else:
+                notes.append(f"{symbol}: no expirations matched {window.value}")
+                continue
         expiration_limit = 2 if selected_from_provider else 7
         for expiration in selected[:expiration_limit]:
             try:
