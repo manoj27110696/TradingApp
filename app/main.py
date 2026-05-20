@@ -10,7 +10,6 @@ from app.models import ExpirationWindow, OptionChain, RecommendationResponse, St
 from app.providers.base import FeaturedIdeasProvider, OptionChainProvider
 from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.market_chameleon import MarketChameleonFeaturedIdeasProvider
-from app.providers.sample import SampleFeaturedIdeasProvider, SampleOptionChainProvider
 from app.services.spread_scanner import SpreadScanner, choose_expirations
 
 app = FastAPI(
@@ -35,7 +34,10 @@ def option_provider(settings: Settings = Depends(get_settings)) -> OptionChainPr
             settings.cutemarkets_base_url,
             settings.cutemarkets_chain_strike_window_pct,
         )
-    return SampleOptionChainProvider()
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="No option-chain provider configured. Set CUTEMARKETS_API_KEY.",
+    )
 
 
 def ideas_provider(settings: Settings = Depends(get_settings)) -> FeaturedIdeasProvider:
@@ -44,7 +46,7 @@ def ideas_provider(settings: Settings = Depends(get_settings)) -> FeaturedIdeasP
             settings.market_chameleon_featured_ideas_url,
             settings.market_chameleon_session_cookie,
         )
-    return SampleFeaturedIdeasProvider()
+    return EmptyFeaturedIdeasProvider()
 
 
 def require_api_key(
@@ -183,3 +185,8 @@ def boost_featured_matches(candidates, ideas):
         candidate.total_score = round(min(candidate.total_score + 4.0, 100.0), 2)
         candidate.rationale.append(f"Boosted because Market Chameleon featured {idea.strategy} for {idea.symbol}.")
     return candidates
+
+
+class EmptyFeaturedIdeasProvider(FeaturedIdeasProvider):
+    async def ideas(self, symbols: list[str] | None = None) -> list:
+        return []
