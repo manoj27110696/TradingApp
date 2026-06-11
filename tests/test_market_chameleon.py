@@ -25,6 +25,7 @@ def test_market_chameleon_provider_parses_rss_items():
     assert len(ideas) == 1
     assert ideas[0].symbol == "SPY"
     assert ideas[0].strategy == "bull put"
+    assert "<p>" not in ideas[0].description
     assert ideas[0].url == "https://example.com/spy-idea"
 
 
@@ -46,3 +47,14 @@ def test_market_chameleon_provider_parses_atom_items():
     assert ideas[0].symbol == "QQQ"
     assert ideas[0].strategy == "bull call"
     assert ideas[0].url == "https://example.com/qqq-idea"
+
+
+def test_market_chameleon_provider_trims_large_html_descriptions():
+    provider = MarketChameleonFeaturedIdeasProvider("https://example.com/feed.xml")
+    huge_html = "<p>SPY bull put spread</p><img src=\"data:image/png;base64,AAA\" />" + (" detail" * 200)
+
+    description = provider._clean_description(huge_html)
+
+    assert "data:image" not in description
+    assert "<img" not in description
+    assert len(description) <= 600
