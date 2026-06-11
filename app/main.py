@@ -106,6 +106,8 @@ async def option_chain(
 @app.get("/api/market-chameleon/ideas")
 async def featured_ideas(
     symbols: str | None = Query(default=None, description="Comma-separated ticker list"),
+    limit: int = Query(default=5, ge=1, le=25, description="Maximum ideas to return in this page."),
+    offset: int = Query(default=0, ge=0, description="Zero-based idea offset for paging through results."),
     _auth: None = Depends(require_api_key),
     provider: FeaturedIdeasProvider = Depends(ideas_provider),
 ) -> dict[str, object]:
@@ -114,7 +116,16 @@ async def featured_ideas(
         ideas = await provider.ideas(symbol_list or None)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not fetch featured ideas: {exc}") from exc
-    return {"ideas": ideas}
+    page = ideas[offset : offset + limit]
+    next_offset = offset + limit if offset + limit < len(ideas) else None
+    return {
+        "ideas": page,
+        "total": len(ideas),
+        "limit": limit,
+        "offset": offset,
+        "next_offset": next_offset,
+        "has_more": next_offset is not None,
+    }
 
 
 @app.get("/api/spreads/recommendations", response_model=RecommendationResponse)
