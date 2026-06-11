@@ -93,6 +93,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: expiration
+          in: query
+          required: true
+          schema:
+            type: string
             format: date
       responses:
         "200":
@@ -110,6 +115,23 @@ paths:
           schema:
             type: string
           description: Comma-separated ticker filter.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 25
+            default: 5
+          description: Maximum ideas to return in this page.
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based offset for retrieving the next page of ideas.
       responses:
         "200":
-          description: Featured ideas.
+          description: Featured ideas page with paging metadata.
