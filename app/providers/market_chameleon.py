@@ -9,6 +9,9 @@ from app.models import MarketChameleonIdea
 from app.providers.base import FeaturedIdeasProvider
 
 
+DESCRIPTION_LIMIT = 600
+
+
 class MarketChameleonFeaturedIdeasProvider(FeaturedIdeasProvider):
     def __init__(self, featured_ideas_url: str, session_cookie: str = "") -> None:
         self.featured_ideas_url = featured_ideas_url
@@ -50,7 +53,7 @@ class MarketChameleonFeaturedIdeasProvider(FeaturedIdeasProvider):
                     strategy=str(row.get("strategy") or row.get("tradeType") or "featured idea"),
                     expiration=expiration,
                     title=str(row.get("title") or row.get("name") or f"{symbol} featured idea"),
-                    description=str(row.get("description") or row.get("summary") or ""),
+                    description=self._clean_description(str(row.get("description") or row.get("summary") or "")),
                     url=row.get("url"),
                     confidence=float(row["confidence"]) if row.get("confidence") is not None else None,
                     fetched_at=datetime.now(timezone.utc),
@@ -75,7 +78,7 @@ class MarketChameleonFeaturedIdeasProvider(FeaturedIdeasProvider):
                     strategy=self._infer_strategy(text),
                     expiration=None,
                     title=text[:120],
-                    description=text,
+                    description=self._clean_description(text),
                     url=urljoin(self.featured_ideas_url, link["href"]) if link else self.featured_ideas_url,
                     confidence=None,
                     fetched_at=datetime.now(timezone.utc),
@@ -107,7 +110,7 @@ class MarketChameleonFeaturedIdeasProvider(FeaturedIdeasProvider):
                     strategy=self._infer_strategy(text),
                     expiration=None,
                     title=title or text[:120] or f"{symbol} RSS idea",
-                    description=description or text,
+                    description=self._clean_description(description or text),
                     url=self._feed_link(item),
                     confidence=None,
                     fetched_at=datetime.now(timezone.utc),
@@ -137,6 +140,13 @@ class MarketChameleonFeaturedIdeasProvider(FeaturedIdeasProvider):
         if atom_link is not None and atom_link.get("href"):
             return atom_link.get("href", "")
         return self.featured_ideas_url
+
+    def _clean_description(self, value: str) -> str:
+        soup = BeautifulSoup(value, "html.parser")
+        for tag in soup.find_all(["img", "script", "style"]):
+            tag.decompose()
+        text = " ".join(soup.get_text(" ", strip=True).split())
+        return text[:DESCRIPTION_LIMIT]
 
     def _first_symbol(self, text: str) -> str:
         for token in text.replace(",", " ").split():
