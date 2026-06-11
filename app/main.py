@@ -135,7 +135,7 @@ async def recommendations(
     strategy: StrategyType = StrategyType.auto,
     start: date | None = Query(default=None),
     end: date | None = Query(default=None),
-    limit: int = Query(default=10, ge=1, le=50),
+    limit: int = Query(default=8, ge=1, le=12),
     _auth: None = Depends(require_api_key),
     settings: Settings = Depends(get_settings),
     provider: OptionChainProvider = Depends(option_provider),
@@ -193,7 +193,7 @@ async def recommendations(
         window=window,
         symbols=symbol_list,
         candidates=sorted(boosted, key=lambda item: item.total_score, reverse=True)[:limit],
-        featured_ideas=ideas,
+        featured_ideas=ideas[:5],
         notes=notes or ["Research only. Verify live quotes, liquidity, earnings, and risk before trading."],
     )
 
