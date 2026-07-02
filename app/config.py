@@ -10,11 +10,18 @@ class Settings(BaseSettings):
     app_name: str = "Options Spread Copilot"
     app_env: str = "local"
     app_api_key: str = ""
+
+    # OAuth 2.0 client credentials (for MCP connector auth)
+    oauth_client_id: str = ""
+    oauth_client_secret: str = ""
+
     cutemarkets_api_key: str = ""
     cutemarkets_base_url: str = "https://api.cutemarkets.com"
     cutemarkets_chain_strike_window_pct: float = 0.12
+
     market_chameleon_featured_ideas_url: str = ""
     market_chameleon_session_cookie: str = ""
+
     default_symbols: str = Field(default="SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA")
 
     @property
