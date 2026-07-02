@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi_mcp import FastApiMCP
 
 from app.config import Settings, get_settings
 from app.models import ExpirationWindow, OptionChain, RecommendationResponse, StrategyType
@@ -233,3 +234,12 @@ def calendar_expirations_for_window(
 class EmptyFeaturedIdeasProvider(FeaturedIdeasProvider):
     async def ideas(self, symbols: list[str] | None = None) -> list:
         return []
+
+
+# Mount MCP server — exposes all routes as MCP tools at /mcp
+mcp = FastApiMCP(
+    app,
+    name="Options Spread Copilot",
+    description="Ranks options vertical spreads and surfaces Market Chameleon trade ideas.",
+)
+mcp.mount()
