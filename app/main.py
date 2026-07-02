@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI, Form, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -54,18 +54,17 @@ def ideas_provider(settings: Settings = Depends(get_settings)) -> FeaturedIdeasP
 
 
 def require_api_key(
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     bearer_token: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     settings: Settings = Depends(get_settings),
 ) -> None:
-    """Accept either X-API-Key header or Bearer token (issued by /oauth/token)."""
+    """Accept Bearer token only (issued by /oauth/token)."""
     if not settings.app_api_key:
         return  # Auth disabled — no APP_API_KEY configured
-    token = x_api_key or (bearer_token.credentials if bearer_token else None)
+    token = bearer_token.credentials if bearer_token else None
     if token != settings.app_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid API key.",
+            detail="Missing or invalid bearer token.",
         )
 
 
