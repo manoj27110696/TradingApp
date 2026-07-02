@@ -1,8 +1,9 @@
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Form, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 
@@ -22,10 +23,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def option_provider(settings: Settings = Depends(get_settings)) -> OptionChainProvider:
@@ -52,14 +55,47 @@ def ideas_provider(settings: Settings = Depends(get_settings)) -> FeaturedIdeasP
 
 def require_api_key(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    bearer_token: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     settings: Settings = Depends(get_settings),
 ) -> None:
-    if settings.app_api_key and x_api_key != settings.app_api_key:
+    """Accept either X-API-Key header or Bearer token (issued by /oauth/token)."""
+    if not settings.app_api_key:
+        return  # Auth disabled — no APP_API_KEY configured
+    token = x_api_key or (bearer_token.credentials if bearer_token else None)
+    if token != settings.app_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid API key.",
         )
 
+
+# ---------------------------------------------------------------------------
+# OAuth 2.0 — client credentials flow (for MCP connector auth)
+# ---------------------------------------------------------------------------
+
+@app.post("/oauth/token", include_in_schema=False)
+async def oauth_token(
+    grant_type: str = Form(...),
+    client_id: str = Form(...),
+    client_secret: str = Form(...),
+    settings: Settings = Depends(get_settings),
+) -> JSONResponse:
+    if grant_type != "client_credentials":
+        raise HTTPException(status_code=400, detail="Unsupported grant_type. Use client_credentials.")
+    if not settings.oauth_client_id or not settings.oauth_client_secret:
+        raise HTTPException(status_code=503, detail="OAuth not configured on this server.")
+    if client_id != settings.oauth_client_id or client_secret != settings.oauth_client_secret:
+        raise HTTPException(status_code=401, detail="Invalid client_id or client_secret.")
+    return JSONResponse({
+        "access_token": settings.app_api_key,
+        "token_type": "bearer",
+        "expires_in": 3600,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.get("/", include_in_schema=False)
 async def dashboard() -> FileResponse:
@@ -199,6 +235,10 @@ async def recommendations(
     )
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 def parse_symbols(value: str | None) -> list[str]:
     if not value:
         return []
@@ -236,7 +276,10 @@ class EmptyFeaturedIdeasProvider(FeaturedIdeasProvider):
         return []
 
 
-# Mount MCP server — exposes all routes as MCP tools at /mcp
+# ---------------------------------------------------------------------------
+# MCP server — exposes all routes as MCP tools at /mcp
+# ---------------------------------------------------------------------------
+
 mcp = FastApiMCP(
     app,
     name="Options Spread Copilot",
