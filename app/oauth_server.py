@@ -314,7 +314,7 @@ async def authorize_submit(
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
     )
-    if not settings.app_api_key or not secrets.compare_digest(api_key, settings.app_api_key):
+    if not settings.app_api_key or not secrets.compare_digest(api_key.strip(), settings.app_api_key):
         hidden = _hidden_fields(
             response_type=response_type,
             client_id=client_id,
