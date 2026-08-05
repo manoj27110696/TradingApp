@@ -72,6 +72,23 @@ def _issue_access_token() -> str:
     return token
 
 
+def _public_base_url(request: Request) -> str:
+    """Resolve the externally visible base URL.
+
+    Prefers X-Forwarded-Proto/Host over request.base_url: behind Render's (or
+    any) TLS-terminating proxy, uvicorn only sees plain HTTP internally unless
+    it's explicitly told to trust the proxy's forwarded headers. If that trust
+    isn't configured, request.base_url silently resolves to http://, which
+    makes every OAuth discovery URL insecure and OAuth clients refuse to
+    register against it.
+    """
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    forwarded_host = request.headers.get("x-forwarded-host")
+    if forwarded_proto and forwarded_host:
+        return f"{forwarded_proto.split(',')[0].strip()}://{forwarded_host.split(',')[0].strip()}"
+    return str(request.base_url).rstrip("/")
+
+
 async def require_bearer_auth(
     request: Request,
     settings: Settings = Depends(get_settings),
@@ -90,7 +107,7 @@ async def require_bearer_auth(
         _prune_expired(_access_tokens)
         if token == settings.app_api_key or token in _access_tokens:
             return
-    base = str(request.base_url).rstrip("/")
+    base = _public_base_url(request)
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Missing or invalid bearer token.",
@@ -107,7 +124,7 @@ async def require_bearer_auth(
 
 @router.get("/.well-known/oauth-authorization-server")
 async def authorization_server_metadata(request: Request) -> dict[str, object]:
-    base = str(request.base_url).rstrip("/")
+    base = _public_base_url(request)
     return {
         "issuer": base,
         "authorization_endpoint": f"{base}/oauth/authorize",
@@ -122,7 +139,7 @@ async def authorization_server_metadata(request: Request) -> dict[str, object]:
 
 @router.get("/.well-known/oauth-protected-resource")
 async def protected_resource_metadata(request: Request) -> dict[str, object]:
-    base = str(request.base_url).rstrip("/")
+    base = _public_base_url(request)
     return {
         "resource": f"{base}/mcp",
         "authorization_servers": [base],
