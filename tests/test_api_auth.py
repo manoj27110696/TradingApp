@@ -68,7 +68,7 @@ def test_recommendations_require_api_key_when_configured(monkeypatch):
     valid = client.get(
         "/api/spreads/recommendations",
         params={"symbols": "SPY", "limit": 1},
-        headers={"X-API-Key": "secret-test-key"},
+        headers={"Authorization": "Bearer secret-test-key"},
     )
 
     assert missing.status_code == 401

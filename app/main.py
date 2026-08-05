@@ -1,14 +1,15 @@
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi_mcp import FastApiMCP
+from fastapi_mcp import AuthConfig, FastApiMCP
 
 from app.config import Settings, get_settings
 from app.models import ExpirationWindow, OptionChain, RecommendationResponse, StrategyType
+from app.oauth_server import require_bearer_auth
+from app.oauth_server import router as oauth_router
 from app.providers.base import FeaturedIdeasProvider, OptionChainProvider
 from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.market_chameleon import MarketChameleonFeaturedIdeasProvider
@@ -27,8 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-bearer_scheme = HTTPBearer(auto_error=False)
+app.include_router(oauth_router)
 
 
 def option_provider(settings: Settings = Depends(get_settings)) -> OptionChainProvider:
@@ -51,45 +51,6 @@ def ideas_provider(settings: Settings = Depends(get_settings)) -> FeaturedIdeasP
             settings.market_chameleon_session_cookie,
         )
     return EmptyFeaturedIdeasProvider()
-
-
-def require_api_key(
-    bearer_token: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    settings: Settings = Depends(get_settings),
-) -> None:
-    """Accept Bearer token only (issued by /oauth/token)."""
-    if not settings.app_api_key:
-        return  # Auth disabled — no APP_API_KEY configured
-    token = bearer_token.credentials if bearer_token else None
-    if token != settings.app_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid bearer token.",
-        )
-
-
-# ---------------------------------------------------------------------------
-# OAuth 2.0 — client credentials flow (for MCP connector auth)
-# ---------------------------------------------------------------------------
-
-@app.post("/oauth/token", include_in_schema=False)
-async def oauth_token(
-    grant_type: str = Form(...),
-    client_id: str = Form(...),
-    client_secret: str = Form(...),
-    settings: Settings = Depends(get_settings),
-) -> JSONResponse:
-    if grant_type != "client_credentials":
-        raise HTTPException(status_code=400, detail="Unsupported grant_type. Use client_credentials.")
-    if not settings.oauth_client_id or not settings.oauth_client_secret:
-        raise HTTPException(status_code=503, detail="OAuth not configured on this server.")
-    if client_id != settings.oauth_client_id or client_secret != settings.oauth_client_secret:
-        raise HTTPException(status_code=401, detail="Invalid client_id or client_secret.")
-    return JSONResponse({
-        "access_token": settings.app_api_key,
-        "token_type": "bearer",
-        "expires_in": 3600,
-    })
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +77,7 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
 @app.get("/api/options/expirations")
 async def expirations(
     symbol: str = Query(..., min_length=1, max_length=12),
-    _auth: None = Depends(require_api_key),
+    _auth: None = Depends(require_bearer_auth),
     provider: OptionChainProvider = Depends(option_provider),
 ) -> dict[str, object]:
     try:
@@ -130,7 +91,7 @@ async def expirations(
 async def option_chain(
     symbol: str = Query(..., min_length=1, max_length=12),
     expiration: date = Query(...),
-    _auth: None = Depends(require_api_key),
+    _auth: None = Depends(require_bearer_auth),
     provider: OptionChainProvider = Depends(option_provider),
 ) -> OptionChain:
     try:
@@ -144,7 +105,7 @@ async def featured_ideas(
     symbols: str | None = Query(default=None, description="Comma-separated ticker list"),
     limit: int = Query(default=5, ge=1, le=25, description="Maximum ideas to return in this page."),
     offset: int = Query(default=0, ge=0, description="Zero-based idea offset for paging through results."),
-    _auth: None = Depends(require_api_key),
+    _auth: None = Depends(require_bearer_auth),
     provider: FeaturedIdeasProvider = Depends(ideas_provider),
 ) -> dict[str, object]:
     symbol_list = parse_symbols(symbols)
@@ -172,7 +133,7 @@ async def recommendations(
     start: date | None = Query(default=None),
     end: date | None = Query(default=None),
     limit: int = Query(default=8, ge=1, le=12),
-    _auth: None = Depends(require_api_key),
+    _auth: None = Depends(require_bearer_auth),
     settings: Settings = Depends(get_settings),
     provider: OptionChainProvider = Depends(option_provider),
     featured_provider: FeaturedIdeasProvider = Depends(ideas_provider),
@@ -283,5 +244,6 @@ mcp = FastApiMCP(
     app,
     name="Options Spread Copilot",
     description="Ranks options vertical spreads and surfaces Market Chameleon trade ideas.",
+    auth_config=AuthConfig(dependencies=[Depends(require_bearer_auth)]),
 )
 mcp.mount()
