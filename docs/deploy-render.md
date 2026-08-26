@@ -28,7 +28,6 @@ Set these in Render:
 
 ```text
 APP_ENV=production
-APP_API_KEY=<generate a long random secret>
 CUTEMARKETS_API_KEY=<your CuteMarkets key for delayed options data>
 CUTEMARKETS_BASE_URL=https://api.cutemarkets.com
 CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT=0.12
@@ -53,12 +52,11 @@ You should see:
 {"status":"ok"}
 ```
 
-Then test a protected endpoint with the `X-API-Key` header:
+Then test a data endpoint:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "https://options-spread-copilot.onrender.com/api/spreads/recommendations?symbols=SPY,QQQ&window=next_week&limit=3" `
-  -Headers @{ "X-API-Key" = "<your APP_API_KEY>" }
+  -Uri "https://options-spread-copilot.onrender.com/api/spreads/recommendations?symbols=SPY,QQQ&window=next_week&limit=3"
 ```
 
 ## 5. Update the Custom GPT Action Schema
@@ -74,10 +72,8 @@ https://options-spread-copilot.onrender.com
 1. Open ChatGPT and create or edit your GPT.
 2. Go to **Actions**.
 3. Import `custom_gpt/action_openapi.yaml`.
-4. Set authentication to **API Key**.
-5. Use header name `X-API-Key`.
-6. Paste the same value you set for `APP_API_KEY` in Render.
-7. Paste the instructions from `docs/custom-gpt.md` into the GPT instructions.
+4. Set authentication to **None**.
+5. Paste the instructions from `docs/custom-gpt.md` into the GPT instructions.
 
 ## 7. Ask It
 
@@ -89,33 +85,8 @@ Give me the best SPY and QQQ spreads expiring next week.
 
 The GPT should call `getSpreadRecommendations`, summarize candidates, and remind you to verify live quotes and risk.
 
-## 8. Connect as a Claude Custom Connector
-
-The app also exposes an MCP server at `/mcp` (via `FastApiMCP`), separate from the
-Custom GPT Action above. Claude's Custom Connectors don't take a manually pasted
-client ID/secret — they discover an OAuth authorization server, self-register, and
-run an authorization-code + PKCE flow. The app implements that flow itself:
-
-1. In Claude, add a connector pointing at `https://options-spread-copilot.onrender.com/mcp`.
-2. Claude will register itself (`POST /oauth/register`) and redirect you to an
-   authorize page hosted by this app.
-3. Enter your `APP_API_KEY` on that page to approve the connection — this is the
-   same key from step 3, acting as your login for the single-user authorization
-   server. Claude never sees the raw key; it only receives a short-lived, scoped
-   access token.
-4. Claude should now list the MCP tools generated from `/api/health`,
-   `/api/options/expirations`, `/api/options/chain`, `/api/market-chameleon/ideas`,
-   and `/api/spreads/recommendations`.
-
-`OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` are unrelated to this flow — they're only
-used by the legacy `client_credentials` grant for the Custom GPT Action's manual
-OAuth setup, if you use that instead of the `X-API-Key` header.
-
 ## Notes
 
 - Free services may sleep, so the first request can be slow.
 - Do not put broker credentials in the GPT.
 - This app ranks research candidates only. It does not place trades.
-- The OAuth authorization server's client/code/token state is in-memory. A
-  redeploy or restart clears it, so a connected Claude connector will need to
-  re-authorize (it does this automatically — it just triggers a fresh login page).

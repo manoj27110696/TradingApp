@@ -47,7 +47,6 @@ class StaticIdeasProvider:
 
 
 def test_recommendations_fail_without_market_data_provider(monkeypatch):
-    monkeypatch.delenv("APP_API_KEY", raising=False)
     monkeypatch.delenv("CUTEMARKETS_API_KEY", raising=False)
     get_settings.cache_clear()
 
@@ -58,29 +57,20 @@ def test_recommendations_fail_without_market_data_provider(monkeypatch):
     assert response.json()["detail"] == "No option-chain provider configured. Set CUTEMARKETS_API_KEY."
 
 
-def test_recommendations_require_api_key_when_configured(monkeypatch):
-    monkeypatch.setenv("APP_API_KEY", "secret-test-key")
+def test_recommendations_are_public(monkeypatch):
     app.dependency_overrides[option_provider] = lambda: StaticOptionProvider()
     get_settings.cache_clear()
 
     client = TestClient(app)
-    missing = client.get("/api/spreads/recommendations", params={"symbols": "SPY", "limit": 1})
-    valid = client.get(
-        "/api/spreads/recommendations",
-        params={"symbols": "SPY", "limit": 1},
-        headers={"Authorization": "Bearer secret-test-key"},
-    )
+    response = client.get("/api/spreads/recommendations", params={"symbols": "SPY", "limit": 1})
 
-    assert missing.status_code == 401
-    assert valid.status_code == 200
+    assert response.status_code == 200
 
     app.dependency_overrides.clear()
-    monkeypatch.delenv("APP_API_KEY", raising=False)
     get_settings.cache_clear()
 
 
-def test_recommendations_try_real_chains_when_expiration_list_fails(monkeypatch):
-    monkeypatch.delenv("APP_API_KEY", raising=False)
+def test_recommendations_try_real_chains_when_expiration_list_fails():
     app.dependency_overrides[option_provider] = lambda: ExpirationOutageProvider()
     get_settings.cache_clear()
 
@@ -105,8 +95,7 @@ def test_recommendations_try_real_chains_when_expiration_list_fails(monkeypatch)
     get_settings.cache_clear()
 
 
-def test_recommendations_try_real_chains_when_expiration_list_is_incomplete(monkeypatch):
-    monkeypatch.delenv("APP_API_KEY", raising=False)
+def test_recommendations_try_real_chains_when_expiration_list_is_incomplete():
     app.dependency_overrides[option_provider] = lambda: IncompleteExpirationProvider()
     get_settings.cache_clear()
 
@@ -141,8 +130,7 @@ def test_calendar_expiration_probe_dates_skip_weekends():
     assert dates == [_test_chain().expiration]
 
 
-def test_featured_ideas_endpoint_supports_paging(monkeypatch):
-    monkeypatch.delenv("APP_API_KEY", raising=False)
+def test_featured_ideas_endpoint_supports_paging():
     app.dependency_overrides[ideas_provider] = lambda: StaticIdeasProvider()
     get_settings.cache_clear()
 

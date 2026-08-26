@@ -6,9 +6,6 @@ const topScore = document.querySelector("#topScore");
 const ideaCount = document.querySelector("#ideaCount");
 const updatedAt = document.querySelector("#updatedAt");
 const providerStatus = document.querySelector("#providerStatus");
-const apiKeyInput = document.querySelector("#apiKey");
-
-apiKeyInput.value = sessionStorage.getItem("optionsSpreadApiKey") || "";
 
 async function loadHealth() {
   const response = await fetch("/api/health");
@@ -22,21 +19,13 @@ async function scan(event) {
   event?.preventDefault();
   results.innerHTML = `<div class="card">Scanning option chains...</div>`;
 
-  const apiKey = apiKeyInput.value.trim();
-  if (apiKey) {
-    sessionStorage.setItem("optionsSpreadApiKey", apiKey);
-  } else {
-    sessionStorage.removeItem("optionsSpreadApiKey");
-  }
-
   const params = new URLSearchParams({
     symbols: document.querySelector("#symbols").value,
     window: document.querySelector("#window").value,
     strategy: document.querySelector("#strategy").value,
     limit: "12",
   });
-  const headers = apiKey ? { "X-API-Key": apiKey } : {};
-  const response = await fetch(`/api/spreads/recommendations?${params.toString()}`, { headers });
+  const response = await fetch(`/api/spreads/recommendations?${params.toString()}`);
   if (!response.ok) {
     results.innerHTML = `<div class="card warning">Scan failed: ${await response.text()}</div>`;
     return;

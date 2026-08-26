@@ -52,7 +52,7 @@ Set `CUTEMARKETS_API_KEY` to enable option-chain data. The app does not use samp
 1. Deploy this API somewhere ChatGPT can reach over HTTPS.
 2. In ChatGPT, create a GPT and add an Action.
 3. Import `custom_gpt/action_openapi.yaml`.
-4. Set authentication to match your deployment, usually an API key header in front of this service.
+4. Set authentication to "None".
 5. Paste the instructions from `docs/custom-gpt.md` into the GPT instructions.
 
 ## Suggested Data Providers

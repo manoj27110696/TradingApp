@@ -4,12 +4,10 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi_mcp import AuthConfig, FastApiMCP
+from fastapi_mcp import FastApiMCP
 
 from app.config import Settings, get_settings
 from app.models import ExpirationWindow, OptionChain, RecommendationResponse, StrategyType
-from app.oauth_server import require_bearer_auth
-from app.oauth_server import router as oauth_router
 from app.providers.base import FeaturedIdeasProvider, OptionChainProvider
 from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.market_chameleon import MarketChameleonFeaturedIdeasProvider
@@ -28,7 +26,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-app.include_router(oauth_router)
 
 
 def option_provider(settings: Settings = Depends(get_settings)) -> OptionChainProvider:
@@ -77,7 +74,6 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
 @app.get("/api/options/expirations")
 async def expirations(
     symbol: str = Query(..., min_length=1, max_length=12),
-    _auth: None = Depends(require_bearer_auth),
     provider: OptionChainProvider = Depends(option_provider),
 ) -> dict[str, object]:
     try:
@@ -91,7 +87,6 @@ async def expirations(
 async def option_chain(
     symbol: str = Query(..., min_length=1, max_length=12),
     expiration: date = Query(...),
-    _auth: None = Depends(require_bearer_auth),
     provider: OptionChainProvider = Depends(option_provider),
 ) -> OptionChain:
     try:
@@ -105,7 +100,6 @@ async def featured_ideas(
     symbols: str | None = Query(default=None, description="Comma-separated ticker list"),
     limit: int = Query(default=5, ge=1, le=25, description="Maximum ideas to return in this page."),
     offset: int = Query(default=0, ge=0, description="Zero-based idea offset for paging through results."),
-    _auth: None = Depends(require_bearer_auth),
     provider: FeaturedIdeasProvider = Depends(ideas_provider),
 ) -> dict[str, object]:
     symbol_list = parse_symbols(symbols)
@@ -133,7 +127,6 @@ async def recommendations(
     start: date | None = Query(default=None),
     end: date | None = Query(default=None),
     limit: int = Query(default=8, ge=1, le=12),
-    _auth: None = Depends(require_bearer_auth),
     settings: Settings = Depends(get_settings),
     provider: OptionChainProvider = Depends(option_provider),
     featured_provider: FeaturedIdeasProvider = Depends(ideas_provider),
@@ -237,13 +230,12 @@ class EmptyFeaturedIdeasProvider(FeaturedIdeasProvider):
 
 
 # ---------------------------------------------------------------------------
-# MCP server — exposes all routes as MCP tools at /mcp
+# MCP server - exposes all routes as MCP tools at /mcp
 # ---------------------------------------------------------------------------
 
 mcp = FastApiMCP(
     app,
     name="Options Spread Copilot",
     description="Ranks options vertical spreads and surfaces Market Chameleon trade ideas.",
-    auth_config=AuthConfig(dependencies=[Depends(require_bearer_auth)]),
 )
 mcp.mount()
