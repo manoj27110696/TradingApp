@@ -114,15 +114,22 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
     async def _get(self, path: str, params: dict | None = None) -> dict:
         url = path if path.startswith("http") else urljoin(f"{self.base_url}/", path.lstrip("/"))
         timeout = httpx.Timeout(self.request_timeout_seconds, connect=min(5.0, self.request_timeout_seconds))
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            for attempt in range(2):
-                response = await client.get(url, params=params, headers=self.headers)
-                if response.status_code not in (429, 500, 502, 503, 504):
-                    response.raise_for_status()
-                    break
-                if attempt == 1:
-                    response.raise_for_status()
-                await asyncio.sleep(0.6 * (attempt + 1))
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                for attempt in range(2):
+                    response = await client.get(url, params=params, headers=self.headers)
+                    if response.status_code not in (429, 500, 502, 503, 504):
+                        response.raise_for_status()
+                        break
+                    if attempt == 1:
+                        response.raise_for_status()
+                    await asyncio.sleep(0.6 * (attempt + 1))
+        except httpx.TimeoutException as exc:
+            raise RuntimeError(
+                f"CuteMarkets timed out after {self.request_timeout_seconds:g} seconds."
+            ) from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"CuteMarkets connection failed ({type(exc).__name__}).") from exc
         payload = response.json()
         if payload.get("status") not in (None, "OK"):
             raise ValueError(f"CuteMarkets returned status {payload.get('status')}")

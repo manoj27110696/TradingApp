@@ -1,6 +1,8 @@
 import asyncio
 from datetime import date, datetime, timezone
 
+import httpx
+
 from app.models import ExpirationWindow, OptionChain, OptionContract, OptionType, StrategyType
 from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.services.spread_scanner import SpreadScanner, choose_expirations
@@ -168,3 +170,30 @@ def test_cutemarkets_expiration_parser_caps_paging(monkeypatch):
 
     assert dates == [date(2026, 5, 20)]
     assert len(requested_pages) == 1
+
+
+def test_cutemarkets_timeout_has_actionable_message(monkeypatch):
+    provider = CuteMarketsOptionChainProvider(
+        "test-key",
+        "https://api.cutemarkets.com",
+        request_timeout_seconds=3,
+    )
+
+    class TimeoutClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+        async def get(self, *args, **kwargs):
+            raise httpx.ReadTimeout("", request=httpx.Request("GET", "https://api.cutemarkets.com"))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: TimeoutClient())
+
+    try:
+        asyncio.run(provider.expirations("SPY"))
+    except RuntimeError as exc:
+        assert str(exc) == "CuteMarkets timed out after 3 seconds."
+    else:
+        raise AssertionError("Expected the provider timeout to be translated")
