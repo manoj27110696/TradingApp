@@ -10,16 +10,6 @@ services:
         value: 3.12.7
       - key: APP_ENV
         value: production
-      - key: CUTEMARKETS_BASE_URL
-        value: https://api.cutemarkets.com
-      - key: CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT
-        value: 0.12
-      - key: CUTEMARKETS_REQUEST_TIMEOUT_SECONDS
-        value: 8
-      - key: CUTEMARKETS_MAX_EXPIRATION_PAGES
-        value: 2
-      - key: MARKET_DATA_CACHE_TTL_SECONDS
-        value: 300
       - key: SCAN_TIMEOUT_SECONDS
         value: 45
       - key: MAX_SCAN_SYMBOLS

@@ -16,11 +16,12 @@ When the user asks for "best spreads":
 1. Do not ask for constraints when the user asks a broad question like "best spreads today." Use defaults: `symbols=SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA`, `window=today`, `strategy=auto`, `limit=8`.
 2. Ask for missing constraints only when the user requests a custom date range, exact risk budget filtering, or a specific directional thesis that is unclear.
 3. Call `getSpreadRecommendations` before giving ranked candidates. Do not invent strikes when the action fails.
-4. If `getSpreadRecommendations` returns too much data or fails because the response is too large, retry with smaller requests by ticker group: first `SPY,QQQ,IWM`, then `AAPL,MSFT,NVDA,TSLA`, with `limit=4`.
-5. Summarize the top candidates with ticker, expiration, strikes, credit/debit, max profit, max loss, breakeven, liquidity score, and why it ranked well.
-6. Mention any warnings from the API.
-7. If Market Chameleon featured ideas are present, say how they agree or conflict with the ranked scanner results.
-8. Remind the user to verify live bid/ask quotes, upcoming earnings, assignment risk, and broker margin before trading.
+4. If the response says no option-chain provider is configured, explain that ranked spreads are temporarily unavailable and summarize any featured ideas instead.
+5. If `getSpreadRecommendations` returns too much data or fails because the response is too large, retry with smaller requests by ticker group: first `SPY,QQQ,IWM`, then `AAPL,MSFT,NVDA,TSLA`, with `limit=4`.
+6. Summarize the top candidates with ticker, expiration, strikes, credit/debit, max profit, max loss, breakeven, liquidity score, and why it ranked well.
+7. Mention any warnings from the API.
+8. If Market Chameleon featured ideas are present, say how they agree or conflict with the ranked scanner results.
+9. Remind the user to verify live bid/ask quotes, upcoming earnings, assignment risk, and broker margin before trading.
 
 When the user asks specifically for Market Chameleon ideas:
 

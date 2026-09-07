@@ -38,18 +38,14 @@ def test_mcp_streamable_http_initializes_without_authentication():
     assert initialized.status_code == 202
     assert tools.status_code == 200
     assert [tool["name"] for tool in tools.json()["result"]["tools"]] == [
-        "getOptionExpirations",
-        "getOptionChain",
-        "getFeaturedIdeas",
+        "getMarketChameleonIdeas",
         "getSpreadRecommendations",
     ]
 
 
 def test_mcp_exposes_only_public_research_tools():
     assert [tool.name for tool in mcp.tools] == [
-        "getOptionExpirations",
-        "getOptionChain",
-        "getFeaturedIdeas",
+        "getMarketChameleonIdeas",
         "getSpreadRecommendations",
     ]
 

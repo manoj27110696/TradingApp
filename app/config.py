@@ -9,12 +9,6 @@ class Settings(BaseSettings):
 
     app_name: str = "Options Spread Copilot"
     app_env: str = "local"
-    cutemarkets_api_key: str = ""
-    cutemarkets_base_url: str = "https://api.cutemarkets.com"
-    cutemarkets_chain_strike_window_pct: float = 0.12
-    cutemarkets_request_timeout_seconds: float = 8.0
-    cutemarkets_max_expiration_pages: int = 2
-    market_data_cache_ttl_seconds: int = 300
     scan_timeout_seconds: int = 45
     max_scan_symbols: int = 5
     scan_concurrency: int = 3

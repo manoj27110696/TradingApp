@@ -46,15 +46,29 @@ class StaticIdeasProvider:
         ]
 
 
-def test_recommendations_fail_without_market_data_provider(monkeypatch):
-    monkeypatch.delenv("CUTEMARKETS_API_KEY", raising=False)
+def test_recommendations_degrade_cleanly_without_market_data_provider():
+    app.dependency_overrides[ideas_provider] = lambda: StaticIdeasProvider()
     get_settings.cache_clear()
 
     client = TestClient(app)
     response = client.get("/api/spreads/recommendations", params={"symbols": "SPY", "limit": 1})
 
+    assert response.status_code == 200
+    assert response.json()["candidates"] == []
+    assert response.json()["featured_ideas"][0]["symbol"] == "SPY"
+    assert "no option-chain provider" in response.json()["notes"][0].lower()
+
+    app.dependency_overrides.clear()
+    get_settings.cache_clear()
+
+
+def test_option_chain_endpoints_fail_fast_without_provider():
+    client = TestClient(app)
+
+    response = client.get("/api/options/expirations", params={"symbol": "SPY"})
+
     assert response.status_code == 503
-    assert response.json()["detail"] == "No option-chain provider configured. Set CUTEMARKETS_API_KEY."
+    assert response.json()["detail"] == "No option-chain provider is configured."
 
 
 def test_recommendations_are_public(monkeypatch):

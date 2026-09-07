@@ -28,12 +28,6 @@ Set these in Render:
 
 ```text
 APP_ENV=production
-CUTEMARKETS_API_KEY=<your CuteMarkets key for delayed options data>
-CUTEMARKETS_BASE_URL=https://api.cutemarkets.com
-CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT=0.12
-CUTEMARKETS_REQUEST_TIMEOUT_SECONDS=8
-CUTEMARKETS_MAX_EXPIRATION_PAGES=2
-MARKET_DATA_CACHE_TTL_SECONDS=300
 SCAN_TIMEOUT_SECONDS=45
 MAX_SCAN_SYMBOLS=5
 SCAN_CONCURRENCY=3
@@ -44,7 +38,7 @@ PUBLIC_RATE_LIMIT_WINDOW_SECONDS=60
 DEFAULT_SYMBOLS=SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA
 ```
 
-Set `CUTEMARKETS_API_KEY` for the free delayed-data path. The app does not fall back to sample market data.
+No option-chain provider is currently bundled. Remove any old `CUTEMARKETS_*` variables from the Render service; they are no longer read by the application.
 
 ## 4. Smoke Test
 
@@ -60,11 +54,11 @@ You should see:
 {"status":"ok"}
 ```
 
-Then test a data endpoint:
+Then test the featured-ideas endpoint:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "https://options-spread-copilot.onrender.com/api/spreads/recommendations?symbols=SPY,QQQ&window=next_week&limit=3"
+  -Uri "https://options-spread-copilot.onrender.com/api/market-chameleon/ideas?symbols=SPY,QQQ&limit=3"
 ```
 
 ## 5. Update the Custom GPT Action Schema
@@ -99,7 +93,7 @@ Try:
 Give me the best SPY and QQQ spreads expiring next week.
 ```
 
-The GPT should call `getSpreadRecommendations`, summarize candidates, and remind you to verify live quotes and risk.
+Until a replacement option-chain provider is added, the GPT can return configured featured ideas but cannot rank spreads from live chain data.
 
 ## Notes
 

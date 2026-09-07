@@ -28,9 +28,7 @@ Use Options Copilot to list the available option expirations for SPY.
 
 The connector should expose these tools:
 
-- `getOptionExpirations`
-- `getOptionChain`
-- `getFeaturedIdeas`
+- `getMarketChameleonIdeas`
 - `getSpreadRecommendations`
 
 If a client does not support Streamable HTTP, configure it with `https://options-spread-copilot.onrender.com/sse` instead.

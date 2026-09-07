@@ -10,7 +10,7 @@ const providerStatus = document.querySelector("#providerStatus");
 async function loadHealth() {
   const response = await fetch("/api/health");
   const health = await response.json();
-  const marketData = health.cutemarkets_configured ? "CuteMarkets delayed data" : "No market data provider";
+  const marketData = health.option_chain_configured ? "Option-chain provider configured" : "No option-chain provider";
   const featuredIdeas = health.market_chameleon_configured ? "Market Chameleon configured" : "No featured-ideas feed";
   providerStatus.textContent = `${marketData} - ${featuredIdeas}`;
 }

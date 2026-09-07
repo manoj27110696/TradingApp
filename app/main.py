@@ -1,6 +1,5 @@
 import asyncio
 from datetime import date, datetime, timedelta, timezone
-from functools import lru_cache
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +11,6 @@ from app.config import Settings, get_settings
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.models import ExpirationWindow, OptionChain, RecommendationResponse, StrategyType
 from app.providers.base import FeaturedIdeasProvider, OptionChainProvider
-from app.providers.cutemarkets import CuteMarketsOptionChainProvider
 from app.providers.market_chameleon import MarketChameleonFeaturedIdeasProvider
 from app.services.spread_scanner import SpreadScanner, choose_expirations, expiration_range
 
@@ -37,38 +35,18 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-@lru_cache(maxsize=8)
-def _cutemarkets_provider(
-    api_key: str,
-    base_url: str,
-    strike_window_pct: float,
-    request_timeout_seconds: float,
-    max_expiration_pages: int,
-    cache_ttl_seconds: int,
-) -> CuteMarketsOptionChainProvider:
-    return CuteMarketsOptionChainProvider(
-        api_key,
-        base_url,
-        strike_window_pct,
-        request_timeout_seconds,
-        max_expiration_pages,
-        cache_ttl_seconds,
-    )
+def option_provider() -> OptionChainProvider | None:
+    return None
 
 
-def option_provider(settings: Settings = Depends(get_settings)) -> OptionChainProvider:
-    if settings.cutemarkets_api_key:
-        return _cutemarkets_provider(
-            settings.cutemarkets_api_key,
-            settings.cutemarkets_base_url,
-            settings.cutemarkets_chain_strike_window_pct,
-            settings.cutemarkets_request_timeout_seconds,
-            settings.cutemarkets_max_expiration_pages,
-            settings.market_data_cache_ttl_seconds,
-        )
+def require_option_provider(
+    provider: OptionChainProvider | None = Depends(option_provider),
+) -> OptionChainProvider:
+    if provider is not None:
+        return provider
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="No option-chain provider configured. Set CUTEMARKETS_API_KEY.",
+        detail="No option-chain provider is configured.",
     )
 
 
@@ -96,7 +74,7 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
         "status": "ok",
         "app": settings.app_name,
         "environment": settings.app_env,
-        "cutemarkets_configured": bool(settings.cutemarkets_api_key),
+        "option_chain_configured": False,
         "market_chameleon_configured": bool(settings.market_chameleon_featured_ideas_url),
         "time": datetime.now(timezone.utc).isoformat(),
     }
@@ -105,7 +83,7 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
 @app.get("/api/options/expirations", operation_id="getOptionExpirations")
 async def expirations(
     symbol: str = Query(..., min_length=1, max_length=12),
-    provider: OptionChainProvider = Depends(option_provider),
+    provider: OptionChainProvider = Depends(require_option_provider),
 ) -> dict[str, object]:
     try:
         dates = await provider.expirations(symbol.upper())
@@ -118,7 +96,7 @@ async def expirations(
 async def option_chain(
     symbol: str = Query(..., min_length=1, max_length=12),
     expiration: date = Query(...),
-    provider: OptionChainProvider = Depends(option_provider),
+    provider: OptionChainProvider = Depends(require_option_provider),
 ) -> OptionChain:
     try:
         return await provider.chain(symbol.upper(), expiration)
@@ -126,7 +104,7 @@ async def option_chain(
         raise HTTPException(status_code=502, detail=f"Could not fetch option chain: {exc}") from exc
 
 
-@app.get("/api/market-chameleon/ideas", operation_id="getFeaturedIdeas")
+@app.get("/api/market-chameleon/ideas", operation_id="getMarketChameleonIdeas")
 async def featured_ideas(
     symbols: str | None = Query(default=None, description="Comma-separated ticker list"),
     limit: int = Query(default=5, ge=1, le=25, description="Maximum ideas to return in this page."),
@@ -163,7 +141,7 @@ async def recommendations(
     end: date | None = Query(default=None),
     limit: int = Query(default=8, ge=1, le=12),
     settings: Settings = Depends(get_settings),
-    provider: OptionChainProvider = Depends(option_provider),
+    provider: OptionChainProvider | None = Depends(option_provider),
     featured_provider: FeaturedIdeasProvider = Depends(ideas_provider),
 ) -> RecommendationResponse:
     requested_symbols = parse_symbols(symbols) or settings.symbols
@@ -174,37 +152,40 @@ async def recommendations(
     if len(requested_symbols) > len(symbol_list):
         notes.append(f"Scanning the first {len(symbol_list)} symbols to keep the request responsive.")
 
-    semaphore = asyncio.Semaphore(max(1, settings.scan_concurrency))
+    if provider is None:
+        notes.append("Ranked spreads are unavailable because no option-chain provider is configured.")
+    else:
+        semaphore = asyncio.Semaphore(max(1, settings.scan_concurrency))
 
-    async def scan_with_limit(symbol: str):
-        async with semaphore:
-            return await scan_symbol(
-                symbol,
-                window,
-                strategy,
-                start,
-                end,
-                limit,
-                provider,
-                scanner,
-            )
+        async def scan_with_limit(symbol: str):
+            async with semaphore:
+                return await scan_symbol(
+                    symbol,
+                    window,
+                    strategy,
+                    start,
+                    end,
+                    limit,
+                    provider,
+                    scanner,
+                )
 
-    tasks = [asyncio.create_task(scan_with_limit(symbol)) for symbol in symbol_list]
-    done, pending = await asyncio.wait(tasks, timeout=max(1, settings.scan_timeout_seconds))
-    for symbol, task in zip(symbol_list, tasks):
-        if task in pending:
-            task.cancel()
-            notes.append(f"{symbol}: scan timed out before completion.")
-            continue
-        try:
-            symbol_candidates, symbol_notes = task.result()
-        except Exception as exc:
-            notes.append(f"{symbol}: scan failed ({exc})")
-            continue
-        candidates.extend(symbol_candidates)
-        notes.extend(symbol_notes)
-    if pending:
-        await asyncio.gather(*pending, return_exceptions=True)
+        tasks = [asyncio.create_task(scan_with_limit(symbol)) for symbol in symbol_list]
+        done, pending = await asyncio.wait(tasks, timeout=max(1, settings.scan_timeout_seconds))
+        for symbol, task in zip(symbol_list, tasks):
+            if task in pending:
+                task.cancel()
+                notes.append(f"{symbol}: scan timed out before completion.")
+                continue
+            try:
+                symbol_candidates, symbol_notes = task.result()
+            except Exception as exc:
+                notes.append(f"{symbol}: scan failed ({exc})")
+                continue
+            candidates.extend(symbol_candidates)
+            notes.extend(symbol_notes)
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     try:
         ideas = await featured_provider.ideas(symbol_list)
@@ -316,9 +297,7 @@ mcp = FastApiMCP(
     name="Options Spread Copilot",
     description="Ranks options vertical spreads and surfaces Market Chameleon trade ideas.",
     include_operations=[
-        "getOptionExpirations",
-        "getOptionChain",
-        "getFeaturedIdeas",
+        "getMarketChameleonIdeas",
         "getSpreadRecommendations",
     ],
 )

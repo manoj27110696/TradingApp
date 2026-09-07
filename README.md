@@ -1,6 +1,6 @@
 # Options Spread Copilot
 
-A local options research API and dashboard that can be connected to ChatGPT as a Custom GPT Action. It pulls option-chain data from a provider, scores common vertical spreads, and exposes concise endpoints for questions like:
+A local options research API and dashboard that can be connected to ChatGPT as a Custom GPT Action. It can score common vertical spreads when an option-chain provider is added and can surface configured Market Chameleon ideas.
 
 - "Give me the best spreads for today."
 - "Find spreads expiring this weekend."
@@ -12,14 +12,14 @@ This project is for research and paper-trading workflow support only. It does no
 ## Features
 
 - FastAPI backend with OpenAPI docs
-- CuteMarkets delayed option-chain adapter for free/cheap research data
+- Provider-neutral option-chain interface; no market-data provider is currently bundled
 - Market Chameleon featured-ideas ingest hook
 - Vertical spread scanner for bull call, bear call, bull put, and bear put spreads
 - Expiration windows: today, this weekend, next week, or custom ISO date range
 - Custom GPT Action schema at `custom_gpt/action_openapi.yaml`
 - Browser dashboard at `/`
 - Authentication-free MCP connector at `/mcp`
-- Short-lived market-data caching and public request limits
+- Bounded scans and public request limits
 
 ## Quick Start
 
@@ -38,12 +38,6 @@ Open `http://localhost:8000`.
 Set these in `.env`:
 
 ```text
-CUTEMARKETS_API_KEY=
-CUTEMARKETS_BASE_URL=https://api.cutemarkets.com
-CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT=0.12
-CUTEMARKETS_REQUEST_TIMEOUT_SECONDS=8
-CUTEMARKETS_MAX_EXPIRATION_PAGES=2
-MARKET_DATA_CACHE_TTL_SECONDS=300
 SCAN_TIMEOUT_SECONDS=45
 MAX_SCAN_SYMBOLS=5
 SCAN_CONCURRENCY=3
@@ -55,9 +49,7 @@ PUBLIC_RATE_LIMIT_WINDOW_SECONDS=60
 
 `MARKET_CHAMELEON_FEATURED_IDEAS_URL` can point to a licensed JSON feed, an RSS/Atom feed, or a Market Chameleon HTML page. RSS/blog feeds are treated as research ideas and parsed for ticker/strategy text; the app does not scrape around Market Chameleon access controls.
 
-Set `CUTEMARKETS_API_KEY` to enable option-chain data. The app does not use sample market data as a fallback; if no provider is configured, data endpoints return a configuration error. The CuteMarkets provider fetches a near-the-money slice of each chain to avoid burning through free-plan limits.
-
-Provider responses are cached in memory for five minutes by default. Scans process up to five symbols with limited concurrency and return partial results after 45 seconds. Public API and MCP requests are limited to 60 requests per client per minute; `/api/health` remains unrestricted.
+No option-chain provider is currently configured. Direct expiration and chain endpoints return `503`; recommendations return configured featured ideas with an empty candidate list and an explanatory note. Scans support up to five symbols with limited concurrency when a replacement `OptionChainProvider` is added. Public API and MCP requests are limited to 60 requests per client per minute; `/api/health` remains unrestricted.
 
 ## Claude Connector Setup
 
@@ -73,7 +65,6 @@ Use `https://options-spread-copilot.onrender.com/mcp` as the custom connector UR
 
 ## Suggested Data Providers
 
-- CuteMarkets: free 15-minute delayed option-chain research data.
 - Polygon, ThetaData, ORATS, Cboe LiveVol, or Interactive Brokers can be added behind `OptionChainProvider`.
 - Market Chameleon featured ideas can be wired through a paid/export feed or a private page endpoint you are licensed to access.
 
