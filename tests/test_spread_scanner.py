@@ -122,6 +122,7 @@ def test_cutemarkets_contract_parser_uses_quote_or_day_price():
 
 def test_cutemarkets_expiration_parser_follows_pages(monkeypatch):
     provider = CuteMarketsOptionChainProvider("test-key", "https://api.cutemarkets.com")
+    requested_pages = []
     pages = {
         "/v1/tickers/expirations/SPY/": {
             "results": ["2026-05-20", {"expiration_date": "2026-05-22"}],
@@ -133,10 +134,37 @@ def test_cutemarkets_expiration_parser_follows_pages(monkeypatch):
     }
 
     async def fake_get(path, params=None):
+        requested_pages.append(path)
         return pages[path]
 
     monkeypatch.setattr(provider, "_get", fake_get)
 
     dates = asyncio.run(provider.expirations("SPY"))
+    cached_dates = asyncio.run(provider.expirations("spy"))
 
     assert dates == [date(2026, 5, 20), date(2026, 5, 22), date(2026, 5, 29)]
+    assert cached_dates == dates
+    assert len(requested_pages) == 2
+
+
+def test_cutemarkets_expiration_parser_caps_paging(monkeypatch):
+    provider = CuteMarketsOptionChainProvider(
+        "test-key",
+        "https://api.cutemarkets.com",
+        max_expiration_pages=1,
+    )
+    requested_pages = []
+
+    async def fake_get(path, params=None):
+        requested_pages.append(path)
+        return {
+            "results": ["2026-05-20"],
+            "next_url": "https://api.cutemarkets.com/v1/tickers/expirations/SPY/?page=2",
+        }
+
+    monkeypatch.setattr(provider, "_get", fake_get)
+
+    dates = asyncio.run(provider.expirations("SPY"))
+
+    assert dates == [date(2026, 5, 20)]
+    assert len(requested_pages) == 1

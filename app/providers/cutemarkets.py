@@ -1,5 +1,8 @@
 from datetime import date, datetime, timezone
 import asyncio
+from copy import deepcopy
+from threading import Lock
+from time import monotonic
 from urllib.parse import urljoin
 
 import httpx
@@ -9,10 +12,23 @@ from app.providers.base import OptionChainProvider
 
 
 class CuteMarketsOptionChainProvider(OptionChainProvider):
-    def __init__(self, api_key: str, base_url: str, strike_window_pct: float = 0.12) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        strike_window_pct: float = 0.12,
+        request_timeout_seconds: float = 8.0,
+        max_expiration_pages: int = 2,
+        cache_ttl_seconds: int = 300,
+    ) -> None:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.strike_window_pct = max(0.03, strike_window_pct)
+        self.request_timeout_seconds = max(1.0, request_timeout_seconds)
+        self.max_expiration_pages = max(1, max_expiration_pages)
+        self.cache_ttl_seconds = max(1, cache_ttl_seconds)
+        self._cache: dict[str, tuple[float, object]] = {}
+        self._cache_lock = Lock()
 
     @property
     def headers(self) -> dict[str, str]:
@@ -22,9 +38,15 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
         }
 
     async def expirations(self, symbol: str) -> list[date]:
+        symbol = symbol.upper()
+        cache_key = f"expirations:{symbol}"
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         dates: list[date] = []
-        next_url: str | None = f"/v1/tickers/expirations/{symbol.upper()}/"
-        for _ in range(20):
+        next_url: str | None = f"/v1/tickers/expirations/{symbol}/"
+        for _ in range(self.max_expiration_pages):
             if not next_url:
                 break
             payload = await self._get(next_url)
@@ -35,10 +57,17 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
                 if isinstance(value, str):
                     dates.append(date.fromisoformat(value))
             next_url = payload.get("next_url")
-        return sorted(set(dates))
+        result = sorted(set(dates))
+        self._cache_put(cache_key, result)
+        return result
 
     async def chain(self, symbol: str, expiration: date) -> OptionChain:
         symbol = symbol.upper()
+        cache_key = f"chain:{symbol}:{expiration.isoformat()}"
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         probe = await self._chain_page(symbol, expiration, limit=1)
         probe_results = probe.get("results", [])
         underlying_price = self._underlying_price(probe_results)
@@ -54,15 +83,20 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
             params["strike_price.gte"] = round(max(0.01, underlying_price - half_width), 2)
             params["strike_price.lte"] = round(underlying_price + half_width, 2)
 
-        contracts: list[OptionContract] = []
-        for option_type in ("call", "put"):
-            payload = await self._chain_page(symbol, expiration, contract_type=option_type, **params)
-            contracts.extend(self._contract(symbol, item) for item in payload.get("results", []))
+        call_payload, put_payload = await asyncio.gather(
+            self._chain_page(symbol, expiration, contract_type="call", **params),
+            self._chain_page(symbol, expiration, contract_type="put", **params),
+        )
+        contracts = [
+            self._contract(symbol, item)
+            for payload in (call_payload, put_payload)
+            for item in payload.get("results", [])
+        ]
 
         if contracts and underlying_price <= 0:
             underlying_price = self._underlying_price_from_contracts(contracts)
 
-        return OptionChain(
+        result = OptionChain(
             symbol=symbol,
             underlying_price=underlying_price,
             expiration=expiration,
@@ -70,6 +104,8 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
             contracts=contracts,
             source="cutemarkets",
         )
+        self._cache_put(cache_key, result)
+        return result
 
     async def _chain_page(self, symbol: str, expiration: date, **params) -> dict:
         params.setdefault("expiration_date", expiration.isoformat())
@@ -77,19 +113,36 @@ class CuteMarketsOptionChainProvider(OptionChainProvider):
 
     async def _get(self, path: str, params: dict | None = None) -> dict:
         url = path if path.startswith("http") else urljoin(f"{self.base_url}/", path.lstrip("/"))
-        async with httpx.AsyncClient(timeout=30) as client:
-            for attempt in range(3):
+        timeout = httpx.Timeout(self.request_timeout_seconds, connect=min(5.0, self.request_timeout_seconds))
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            for attempt in range(2):
                 response = await client.get(url, params=params, headers=self.headers)
                 if response.status_code not in (429, 500, 502, 503, 504):
                     response.raise_for_status()
                     break
-                if attempt == 2:
+                if attempt == 1:
                     response.raise_for_status()
                 await asyncio.sleep(0.6 * (attempt + 1))
         payload = response.json()
         if payload.get("status") not in (None, "OK"):
             raise ValueError(f"CuteMarkets returned status {payload.get('status')}")
         return payload
+
+    def _cache_get(self, key: str):
+        now = monotonic()
+        with self._cache_lock:
+            cached = self._cache.get(key)
+            if cached is None:
+                return None
+            expires_at, value = cached
+            if expires_at <= now:
+                self._cache.pop(key, None)
+                return None
+            return deepcopy(value)
+
+    def _cache_put(self, key: str, value: object) -> None:
+        with self._cache_lock:
+            self._cache[key] = (monotonic() + self.cache_ttl_seconds, deepcopy(value))
 
     def _contract(self, underlying: str, item: dict) -> OptionContract:
         details = item.get("details") or {}

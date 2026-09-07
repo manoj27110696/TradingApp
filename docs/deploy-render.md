@@ -31,8 +31,16 @@ APP_ENV=production
 CUTEMARKETS_API_KEY=<your CuteMarkets key for delayed options data>
 CUTEMARKETS_BASE_URL=https://api.cutemarkets.com
 CUTEMARKETS_CHAIN_STRIKE_WINDOW_PCT=0.12
+CUTEMARKETS_REQUEST_TIMEOUT_SECONDS=8
+CUTEMARKETS_MAX_EXPIRATION_PAGES=2
+MARKET_DATA_CACHE_TTL_SECONDS=300
+SCAN_TIMEOUT_SECONDS=45
+MAX_SCAN_SYMBOLS=5
+SCAN_CONCURRENCY=3
 MARKET_CHAMELEON_FEATURED_IDEAS_URL=<licensed JSON, RSS/Atom, HTML, or export URL>
 MARKET_CHAMELEON_SESSION_COOKIE=<only if your licensed feed requires it>
+PUBLIC_RATE_LIMIT_REQUESTS=60
+PUBLIC_RATE_LIMIT_WINDOW_SECONDS=60
 DEFAULT_SYMBOLS=SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA
 ```
 
@@ -66,6 +74,14 @@ The checked-in schema already points to:
 ```text
 https://options-spread-copilot.onrender.com
 ```
+
+For Claude or another MCP client, use the authentication-free Streamable HTTP endpoint:
+
+```text
+https://options-spread-copilot.onrender.com/mcp
+```
+
+The compatibility SSE endpoint is `https://options-spread-copilot.onrender.com/sse`.
 
 ## 6. Create the Custom GPT Action
 
