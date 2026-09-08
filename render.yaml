@@ -16,6 +16,8 @@ services:
         value: 5
       - key: SCAN_CONCURRENCY
         value: 3
+      - key: MARKET_CHAMELEON_MAX_AGE_DAYS
+        value: 7
       - key: PUBLIC_RATE_LIMIT_REQUESTS
         value: 60
       - key: PUBLIC_RATE_LIMIT_WINDOW_SECONDS

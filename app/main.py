@@ -55,6 +55,7 @@ def ideas_provider(settings: Settings = Depends(get_settings)) -> FeaturedIdeasP
         return MarketChameleonFeaturedIdeasProvider(
             settings.market_chameleon_featured_ideas_url,
             settings.market_chameleon_session_cookie,
+            settings.market_chameleon_max_age_days,
         )
     return EmptyFeaturedIdeasProvider()
 
@@ -104,12 +105,21 @@ async def option_chain(
         raise HTTPException(status_code=502, detail=f"Could not fetch option chain: {exc}") from exc
 
 
-@app.get("/api/market-chameleon/ideas", operation_id="getMarketChameleonIdeas")
+@app.get(
+    "/api/market-chameleon/ideas",
+    operation_id="getMarketChameleonIdeas",
+    summary="Get fresh Market Chameleon research ideas",
+    description=(
+        "Returns only recently published ideas with confidently identified ticker symbols. "
+        "Stale articles and ambiguous uppercase words are excluded."
+    ),
+)
 async def featured_ideas(
     symbols: str | None = Query(default=None, description="Comma-separated ticker list"),
     limit: int = Query(default=5, ge=1, le=25, description="Maximum ideas to return in this page."),
     offset: int = Query(default=0, ge=0, description="Zero-based idea offset for paging through results."),
     provider: FeaturedIdeasProvider = Depends(ideas_provider),
+    settings: Settings = Depends(get_settings),
 ) -> dict[str, object]:
     symbol_list = parse_symbols(symbols)
     try:
@@ -119,12 +129,14 @@ async def featured_ideas(
     page = ideas[offset : offset + limit]
     next_offset = offset + limit if offset + limit < len(ideas) else None
     return {
+        "status": "ok" if ideas else "no_matching_fresh_ideas",
         "ideas": page,
         "total": len(ideas),
         "limit": limit,
         "offset": offset,
         "next_offset": next_offset,
         "has_more": next_offset is not None,
+        "freshness_limit_days": settings.market_chameleon_max_age_days,
     }
 
 
@@ -192,6 +204,11 @@ async def recommendations(
     except Exception as exc:
         ideas = []
         notes.append(f"Market Chameleon ideas unavailable ({exc})")
+    if settings.market_chameleon_featured_ideas_url and not ideas:
+        notes.append(
+            f"No matching Market Chameleon ideas published in the last "
+            f"{settings.market_chameleon_max_age_days} days."
+        )
 
     boosted = boost_featured_matches(candidates, ideas)
     return RecommendationResponse(

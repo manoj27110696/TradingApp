@@ -85,6 +85,7 @@ class MarketChameleonIdea(BaseModel):
     description: str = ""
     url: str | None = None
     confidence: float | None = None
+    published_at: datetime | None = None
     fetched_at: datetime
 
 

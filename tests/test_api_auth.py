@@ -153,6 +153,8 @@ def test_featured_ideas_endpoint_supports_paging():
 
     assert response.status_code == 200
     body = response.json()
+    assert body["status"] == "ok"
+    assert body["freshness_limit_days"] == 7
     assert body["total"] == 3
     assert body["limit"] == 1
     assert body["offset"] == 1

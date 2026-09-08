@@ -43,11 +43,12 @@ MAX_SCAN_SYMBOLS=5
 SCAN_CONCURRENCY=3
 MARKET_CHAMELEON_FEATURED_IDEAS_URL=
 MARKET_CHAMELEON_SESSION_COOKIE=
+MARKET_CHAMELEON_MAX_AGE_DAYS=7
 PUBLIC_RATE_LIMIT_REQUESTS=60
 PUBLIC_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
-`MARKET_CHAMELEON_FEATURED_IDEAS_URL` can point to a licensed JSON feed, an RSS/Atom feed, or a Market Chameleon HTML page. RSS/blog feeds are treated as research ideas and parsed for ticker/strategy text; the app does not scrape around Market Chameleon access controls.
+`MARKET_CHAMELEON_FEATURED_IDEAS_URL` can point to a licensed JSON feed, an RSS/Atom feed, or a Market Chameleon HTML page. RSS/blog feeds are treated as research ideas; entries older than `MARKET_CHAMELEON_MAX_AGE_DAYS` are discarded, and ticker symbols must be explicitly identified rather than guessed from uppercase prose. The app does not scrape around Market Chameleon access controls.
 
 No option-chain provider is currently configured. Direct expiration and chain endpoints return `503`; recommendations return configured featured ideas with an empty candidate list and an explanatory note. Scans support up to five symbols with limited concurrency when a replacement `OptionChainProvider` is added. Public API and MCP requests are limited to 60 requests per client per minute; `/api/health` remains unrestricted.
 

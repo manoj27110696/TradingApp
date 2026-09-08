@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     scan_concurrency: int = 3
     market_chameleon_featured_ideas_url: str = ""
     market_chameleon_session_cookie: str = ""
+    market_chameleon_max_age_days: int = 7
     public_rate_limit_requests: int = 60
     public_rate_limit_window_seconds: int = 60
     default_symbols: str = Field(default="SPY,QQQ,IWM,AAPL,MSFT,NVDA,TSLA")
